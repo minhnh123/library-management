@@ -66,14 +66,26 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
+  const [searchText, setSearchText] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterYear, setFilterYear] = useState('');
+
   const defaultForm = {
     title: '', author: '', isbn: '', category: 'Công nghệ thông tin',
     publishedYear: new Date().getFullYear(), totalQuantity: 1, availableQuantity: 1
   };
   const [formData, setFormData] = useState(defaultForm);
 
-  const fetchBooks = () => {
-    fetch('/api/books')
+const fetchBooks = () => {
+    setLoading(true);
+    // Gom các bộ lọc thành chuỗi URL (vd: ?search=abc&category=IT)
+    const params = new URLSearchParams({
+      search: searchText,
+      category: filterCategory,
+      year: filterYear
+    });
+
+    fetch(`/api/books?${params.toString()}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success) setBooks(data.data);
@@ -85,7 +97,14 @@ export default function Home() {
       });
   };
 
-  useEffect(() => { fetchBooks(); }, []);
+  // Tự động gọi lại API mỗi khi người dùng thay đổi bộ lọc
+  useEffect(() => {
+    // Kỹ thuật Debounce: Đợi 400ms sau khi ngừng gõ mới gọi API để tiết kiệm tài nguyên Cloud
+    const delayDebounceFn = setTimeout(() => {
+      fetchBooks();
+    }, 400); 
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchText, filterCategory, filterYear]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -149,6 +168,12 @@ export default function Home() {
   const totalCopies = books.reduce((s, b) => s + (b.totalQuantity || 0), 0);
   const availableCopies = books.reduce((s, b) => s + (b.availableQuantity || 0), 0);
   const uniqueCategories = [...new Set(books.map(b => b.category))].length;
+
+  const yearOptions = [...new Set(books.map(b => b.publishedYear))].sort((a, b) => b - a);
+
+  const filteredBooks = books;
+
+  const hasActiveFilter = searchText || filterCategory || filterYear;
 
   const inputClass = "mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100";
 
@@ -259,6 +284,51 @@ export default function Home() {
               </button>
             </div>
 
+            <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <svg xmlns="http://www.w3.org/2000/svg" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  placeholder="Tìm theo tên sách hoặc tác giả..."
+                  className="w-full pl-9 pr-4 py-2.5 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-800 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="py-2.5 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-700 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              >
+                <option value="">Tất cả thể loại</option>
+                <option>Công nghệ thông tin</option>
+                <option>An ninh mạng</option>
+                <option>Văn học</option>
+                <option>Khoa học</option>
+                <option>Lịch sử</option>
+                <option>Khác</option>
+              </select>
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(e.target.value)}
+                className="py-2.5 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-700 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              >
+                <option value="">Tất cả năm</option>
+                {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              {hasActiveFilter && (
+                <button
+                  onClick={() => { setSearchText(''); setFilterCategory(''); setFilterYear(''); }}
+                  className="flex items-center gap-1.5 px-3 py-2.5 text-sm rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition whitespace-nowrap"
+                >
+                  <IconClose />
+                  Xóa lọc
+                </button>
+              )}
+            </div>
+
             {loading ? (
               <div className="py-20 flex flex-col items-center gap-3 text-slate-400">
                 <div className="w-8 h-8 border-2 border-indigo-200 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -279,8 +349,8 @@ export default function Home() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {books.length > 0 ? (
-                      books.map((book) => {
+                    {filteredBooks.length > 0 ? (
+                      filteredBooks.map((book) => {
                         const cat = categoryConfig[book.category] || categoryConfig['Khác'];
                         const ratio = book.totalQuantity > 0 ? book.availableQuantity / book.totalQuantity : 0;
                         const stockColor = ratio > 0.5 ? 'text-emerald-600' : ratio > 0 ? 'text-amber-600' : 'text-red-500';
@@ -331,8 +401,17 @@ export default function Home() {
                             <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-300">
                               <IconBook />
                             </div>
-                            <p className="text-sm font-medium">Chưa có cuốn sách nào</p>
-                            <p className="text-xs">Nhấn Thêm sách mới để bắt đầu</p>
+                            {hasActiveFilter ? (
+                              <>
+                                <p className="text-sm font-medium">Không tìm thấy kết quả</p>
+                                <p className="text-xs">Thử thay đổi từ khóa hoặc bộ lọc</p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm font-medium">Chưa có cuốn sách nào</p>
+                                <p className="text-xs">Nhấn Thêm sách mới để bắt đầu</p>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -344,7 +423,10 @@ export default function Home() {
 
             {!loading && books.length > 0 && (
               <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                <span>Hiển thị {books.length} kết quả</span>
+                <span>
+                  Hiển thị <span className="font-semibold text-slate-600">{filteredBooks.length}</span>
+                  {hasActiveFilter && <span> / {totalBooks}</span>} kết quả
+                </span>
                 <span>Cập nhật lần cuối: {new Date().toLocaleDateString('vi-VN')}</span>
               </div>
             )}

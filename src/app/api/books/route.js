@@ -1,21 +1,46 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb'; 
-import Book from '@/models/Book';     
+import dbConnect from '@/lib/mongodb';
+import Book from '@/models/Book';
 
-// [GET] - Lấy danh sách tất cả các cuốn sách (chưa bị xóa mềm)
-export async function GET() {
+// [GET] - Lấy danh sách sách có hỗ trợ Tìm kiếm và Lọc (Server-side)
+export async function GET(request) {
   try {
-    await dbConnect(); 
+    await dbConnect();
     
-    // Tìm tất cả sách có isDeleted: false, sắp xếp mới nhất lên đầu
-    const books = await Book.find({ isDeleted: false }).sort({ createdAt: -1 });
+    // 1. Lấy các tham số (query parameters) từ URL
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search') || '';
+    const category = searchParams.get('category') || '';
+    const year = searchParams.get('year') || '';
+
+    // 2. Mặc định chỉ lấy sách chưa bị xóa mềm
+    let query = { isDeleted: false };
+
+    // 3. Xây dựng bộ lọc cho MongoDB Atlas
+    // Tìm kiếm tương đối (regex) không phân biệt hoa thường (i)
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { author: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    if (category && category !== 'Tất cả thể loại' && category !== '') {
+      query.category = category;
+    }
+
+    if (year && year !== 'Tất cả năm' && year !== '') {
+      query.publishedYear = Number(year);
+    }
+
+    // 4. Bắn truy vấn xuống Cloud Database
+    const books = await Book.find(query).sort({ createdAt: -1 });
     
     return NextResponse.json({ success: true, data: books }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
-
 // [POST] - Thêm một cuốn sách mới vào thư viện (Có xử lý "Hồi sinh" sách đã xóa)
 export async function POST(request) {
   try {
