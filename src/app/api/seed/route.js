@@ -1,0 +1,85 @@
+import { NextResponse } from 'next/server';
+import dbConnect from '@/lib/mongodb';
+import Region from '@/models/Region';
+import User from '@/models/User';
+// Import thêm model Book để tránh lỗi khi Mongoose khởi tạo các bảng liên kết
+import Book from '@/models/Book'; 
+
+export async function GET() {
+  try {
+    // Kết nối Database Cloud
+    await dbConnect();
+
+    // 1. KHỞI TẠO CƠ SỞ (REGION)
+    // Kiểm tra xem Cơ sở Đà Nẵng đã tồn tại chưa, nếu chưa thì tạo mới
+    let danangRegion = await Region.findOne({ name: 'Cơ sở Đà Nẵng' });
+    
+    if (!danangRegion) {
+      danangRegion = await Region.create({
+        name: 'Cơ sở Đà Nẵng',
+        address: 'Đà Nẵng, Việt Nam',
+        isActive: true
+      });
+      console.log('Đã tạo mới Cơ sở Đà Nẵng!');
+    }
+
+    // 2. KHỞI TẠO TÀI KHOẢN THỦ THƯ (USER)
+    // Tạo một tài khoản và gán chặt (ref) vào ID của Cơ sở Đà Nẵng vừa tạo
+    let danangUser = await User.findOne({ username: 'thuthu_dn' });
+
+    if (!danangUser) {
+      danangUser = await User.create({
+        username: 'thuthu_dn',
+        password: '123', // Lưu ý cho báo cáo: Thực tế mật khẩu này phải được băm (Hash) bằng bcrypt
+        fullName: 'Nguyễn Văn Admin',
+        regionId: danangRegion._id,
+        role: 'LIBRARIAN'
+      });
+      console.log('Đã tạo mới tài khoản Thủ thư Đà Nẵng!');
+    }
+
+    // 3. KHỞI TẠO CƠ SỞ HÀ NỘI & THỦ THƯ HÀ NỘI (Để test cách ly dữ liệu)
+    let hanoiRegion = await Region.findOne({ name: 'Cơ sở Hà Nội' });
+    if (!hanoiRegion) {
+      hanoiRegion = await Region.create({
+        name: 'Cơ sở Hà Nội',
+        address: 'Hà Nội, Việt Nam',
+        isActive: true
+      });
+      console.log('Đã tạo mới Cơ sở Hà Nội!');
+    }
+
+    let hanoiUser = await User.findOne({ username: 'thuthu_hn' });
+    if (!hanoiUser) {
+      hanoiUser = await User.create({
+        username: 'thuthu_hn',
+        password: '123',
+        fullName: 'Trần Thủ Thư HN',
+        regionId: hanoiRegion._id,
+        role: 'LIBRARIAN'
+      });
+      console.log('Đã tạo mới tài khoản Thủ thư Hà Nội!');
+    }
+
+    // 4. Trả về kết quả
+    return NextResponse.json({
+      success: true,
+      message: 'Khởi tạo dữ liệu mồi (Seed Data) thành công!',
+      credentials: {
+        da_nang: {
+          chi_nhanh: danangRegion.name,
+          tai_khoan: danangUser.username,
+          mat_khau: '123'
+        },
+        ha_noi: {
+          chi_nhanh: hanoiRegion.name,
+          tai_khoan: hanoiUser.username,
+          mat_khau: '123'
+        }
+      }
+    }, { status: 200 });
+
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}

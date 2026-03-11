@@ -2,22 +2,29 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Book from '@/models/Book';
 
-// [GET] - Lấy danh sách sách có hỗ trợ Tìm kiếm và Lọc (Server-side)
+// [GET] - Lấy danh sách sách có hỗ trợ Tìm kiếm, Lọc và CÁCH LY THEO CHI NHÁNH
 export async function GET(request) {
   try {
     await dbConnect();
     
-    // 1. Lấy các tham số (query parameters) từ URL
+    // 1. Nhận các yêu cầu từ giao diện
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
     const year = searchParams.get('year') || '';
+    
+    // ĐÂY LÀ CHÌA KHÓA: Nhận ID của chi nhánh đang đăng nhập
+    const regionId = searchParams.get('regionId'); 
 
-    // 2. Mặc định chỉ lấy sách chưa bị xóa mềm
+    // Mặc định chỉ lấy sách chưa bị xóa mềm
     let query = { isDeleted: false };
 
-    // 3. Xây dựng bộ lọc cho MongoDB Atlas
-    // Tìm kiếm tương đối (regex) không phân biệt hoa thường (i)
+    // 2. ÉP BUỘC DATABASE CHỈ TÌM SÁCH CỦA CHI NHÁNH ĐÓ
+    if (regionId) {
+      query.regionId = regionId;
+    }
+
+    // 3. Các bộ lọc khác (Tên sách, thể loại, năm)
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
@@ -33,7 +40,7 @@ export async function GET(request) {
       query.publishedYear = Number(year);
     }
 
-    // 4. Bắn truy vấn xuống Cloud Database
+    // 4. Bắn truy vấn xuống MongoDB Atlas
     const books = await Book.find(query).sort({ createdAt: -1 });
     
     return NextResponse.json({ success: true, data: books }, { status: 200 });

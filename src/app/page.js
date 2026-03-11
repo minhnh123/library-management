@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 const categoryConfig = {
   'Công nghệ thông tin': { bg: 'bg-violet-100', text: 'text-violet-700', dot: 'bg-violet-400' },
   'An ninh mạng':        { bg: 'bg-rose-100',   text: 'text-rose-700',   dot: 'bg-rose-400' },
@@ -61,6 +61,10 @@ const IconCategory = () => (
 );
 
 export default function Home() {
+  const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -76,13 +80,44 @@ export default function Home() {
   };
   const [formData, setFormData] = useState(defaultForm);
 
-const fetchBooks = () => {
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsMounted(true);
+
+    const userStr = localStorage.getItem('library_user');
+    if (!userStr) {
+      router.push('/login');
+      return;
+    }
+
+    try {
+      const parsedUser = JSON.parse(userStr);
+      setCurrentUser(parsedUser);
+    } catch {
+      localStorage.removeItem('library_user');
+      router.push('/login');
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('library_user');
+    setCurrentUser(null);
+    router.push('/login');
+  };
+
+  const fetchBooks = useCallback(() => {
+    if (!currentUser) {
+      // Chờ user xác thực xong trước khi gọi API
+      return;
+    }
+
     setLoading(true);
     // Gom các bộ lọc thành chuỗi URL (vd: ?search=abc&category=IT)
     const params = new URLSearchParams({
       search: searchText,
       category: filterCategory,
-      year: filterYear
+      year: filterYear,
+      regionId: currentUser?.region?._id || currentUser?.regionId || ''
     });
 
     fetch(`/api/books?${params.toString()}`)
@@ -95,16 +130,15 @@ const fetchBooks = () => {
         console.error("Lỗi:", err);
         setLoading(false);
       });
-  };
+  }, [currentUser, searchText, filterCategory, filterYear]);
 
-  // Tự động gọi lại API mỗi khi người dùng thay đổi bộ lọc
   useEffect(() => {
     // Kỹ thuật Debounce: Đợi 400ms sau khi ngừng gõ mới gọi API để tiết kiệm tài nguyên Cloud
     const delayDebounceFn = setTimeout(() => {
       fetchBooks();
-    }, 400); 
+    }, 400);
     return () => clearTimeout(delayDebounceFn);
-  }, [searchText, filterCategory, filterYear]);
+  }, [searchText, filterCategory, filterYear, currentUser, fetchBooks]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -140,13 +174,27 @@ const fetchBooks = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!currentUser) {
+      alert('Vui lòng đăng nhập trước khi thêm / cập nhật sách');
+      router.push('/login');
+      return;
+    }
+
     const url = editingId ? `/api/books/${editingId}` : '/api/books';
     const method = editingId ? 'PUT' : 'POST';
+
+    const payload = {
+      ...formData,
+      regionId: currentUser?.region?._id || currentUser?.regionId || '',
+      createdBy: currentUser?._id || currentUser?.id || '',
+      updatedBy: currentUser?._id || currentUser?.id || ''
+    };
+
     try {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
@@ -176,6 +224,14 @@ const fetchBooks = () => {
   const hasActiveFilter = searchText || filterCategory || filterYear;
 
   const inputClass = "mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100";
+
+  if (!isMounted || !currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="p-6 text-center text-slate-600">Đang xác thực người dùng...</div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -209,8 +265,8 @@ const fetchBooks = () => {
                 <IconBook />
               </div>
               <div>
-                <h1 className="text-lg font-800 font-bold text-slate-800 leading-tight">LibraryOS</h1>
-                <p className="text-xs text-slate-400 leading-tight">Hệ thống quản lý thư viện</p>
+                <h1 className="text-lg font-800 font-bold text-slate-800 leading-tight">{currentUser?.region?.name || currentUser?.branch || 'LibraryOS'}</h1>
+                <p className="text-xs text-indigo-500 leading-tight">{currentUser?.region?.name ? 'Chi nhánh' : 'Hệ thống quản lý thư viện'}</p>
               </div>
             </div>
             <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-500">
@@ -219,8 +275,15 @@ const fetchBooks = () => {
               <a href="#" className="hover:text-slate-800 transition">Mượn trả</a>
               <a href="#" className="hover:text-slate-800 transition">Báo cáo</a>
             </nav>
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-sm">TV</div>
+            <div className="flex items-center gap-4">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-bold text-slate-800">{currentUser?.fullName || currentUser?.name || currentUser?.username || 'Thủ thư'}</p>
+                <p className="text-xs text-slate-500">Thủ thư</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-sm">
+                {currentUser?.fullName ? currentUser.fullName.charAt(0).toUpperCase() : (currentUser?.username ? currentUser.username.charAt(0).toUpperCase() : 'T')}
+              </div>
+              <button onClick={handleLogout} className="text-xs font-semibold text-rose-500 hover:text-rose-600">Đăng xuất</button>
             </div>
           </div>
         </header>
