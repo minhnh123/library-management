@@ -1,36 +1,64 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
-import Region from '@/models/Region'; // Import để có thể lấy được tên chi nhánh
+import bcrypt from 'bcryptjs';
+import { SignJWT } from 'jose';
+
+// Chìa khóa bí mật để ký Token (Thực tế sẽ để trong file .env)
+const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'chuoi_ky_tu_bi_mat_cua_do_an_cloud_2026');
 
 export async function POST(request) {
   try {
     await dbConnect();
     const { username, password } = await request.json();
 
-    // Tìm user và "populate" (kéo theo) thông tin chi nhánh dựa vào regionId
     const user = await User.findOne({ username }).populate('regionId');
+    if (!user) return NextResponse.json({ success: false, error: 'Tài khoản không tồn tại!' }, { status: 401 });
 
-    // Kiểm tra tài khoản và mật khẩu (Lưu ý cho báo cáo: Thực tế sẽ dùng thư viện bcrypt để so sánh hash)
-    if (!user || user.password !== password) {
-      return NextResponse.json(
-        { success: false, error: 'Tài khoản hoặc mật khẩu không chính xác!' },
-        { status: 401 }
-      );
-    }
+    // 1. SO SÁNH MẬT KHẨU ĐÃ BĂM
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return NextResponse.json({ success: false, error: 'Mật khẩu không chính xác!' }, { status: 401 });
 
-    // Nếu đúng, trả về thông tin người dùng (không trả về mật khẩu để bảo mật)
-    return NextResponse.json({
+    // 2. TẠO THẺ THÔNG HÀNH (JWT)
+    const token = await new SignJWT({ 
+      userId: user._id, 
+      username: user.username,
+      regionId: user.regionId._id 
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('12h') // Hết hạn sau 12 tiếng
+      .sign(SECRET_KEY);
+
+    // 3. GÓI TOKEN VÀO HTTP-ONLY COOKIE (Chống XSS Hacker)
+    const response = NextResponse.json({
       success: true,
-      data: {
-        _id: user._id,
-        username: user.username,
-        fullName: user.fullName,
-        role: user.role,
-        region: user.regionId // Chứa thông tin Cơ sở Đà Nẵng
-      }
+      data: { _id: user._id, username: user.username, fullName: user.fullName, role: user.role, region: user.regionId }
     }, { status: 200 });
 
+    response.cookies.set('library_token', token, {
+      httpOnly: true, 
+      secure: process.env.NODE_ENV === 'production', 
+      sameSite: 'strict', 
+      maxAge: 12 * 60 * 60 // 12 tiếng
+    });
+
+    return response;
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE() {
+  try {
+    const response = NextResponse.json({ success: true, message: 'Đã đăng xuất thành công.' }, { status: 200 });
+    response.cookies.set('library_token', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 0
+    });
+    return response;
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

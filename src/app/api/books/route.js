@@ -6,44 +6,46 @@ import Book from '@/models/Book';
 export async function GET(request) {
   try {
     await dbConnect();
-    
-    // 1. Nhận các yêu cầu từ giao diện
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const category = searchParams.get('category') || '';
     const year = searchParams.get('year') || '';
-    
-    // ĐÂY LÀ CHÌA KHÓA: Nhận ID của chi nhánh đang đăng nhập
     const regionId = searchParams.get('regionId'); 
+    
+    // 1. NHẬN YÊU CẦU PHÂN TRANG TỪ GIAO DIỆN
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 5; // Giới hạn 5 cuốn/trang để dễ test
+    const skip = (page - 1) * limit; // Công thức tính số bản ghi cần bỏ qua
 
-    // Mặc định chỉ lấy sách chưa bị xóa mềm
     let query = { isDeleted: false };
+    if (regionId) query.regionId = regionId;
 
-    // 2. ÉP BUỘC DATABASE CHỈ TÌM SÁCH CỦA CHI NHÁNH ĐÓ
-    if (regionId) {
-      query.regionId = regionId;
-    }
-
-    // 3. Các bộ lọc khác (Tên sách, thể loại, năm)
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
-        { author: { $regex: search, $options: 'i' } }
+        { author: { $regex: search, $options: 'i' } },
+        { isbn: { $regex: search, $options: 'i' } }
       ];
     }
 
-    if (category && category !== 'Tất cả thể loại' && category !== '') {
-      query.category = category;
-    }
+    if (category && category !== 'Tất cả thể loại' && category !== '') query.category = category;
+    if (year && year !== 'Tất cả năm' && year !== '') query.publishedYear = Number(year);
 
-    if (year && year !== 'Tất cả năm' && year !== '') {
-      query.publishedYear = Number(year);
-    }
+    // 2. ĐẾM TỔNG SỐ LƯỢNG ĐỂ TÍNH SỐ TRANG
+    const total = await Book.countDocuments(query);
+    const totalPages = Math.ceil(total / limit);
 
-    // 4. Bắn truy vấn xuống MongoDB Atlas
-    const books = await Book.find(query).sort({ createdAt: -1 });
-    
-    return NextResponse.json({ success: true, data: books }, { status: 200 });
+    // 3. THỰC THI TRUY VẤN CÓ GIỚI HẠN (Pagination Query)
+    const books = await Book.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)   // Bỏ qua các sách ở trang trước
+      .limit(limit); // Chỉ lấy đúng số lượng của trang hiện tại
+
+    return NextResponse.json({ 
+      success: true, 
+      data: books,
+      pagination: { total, page, totalPages, limit } 
+    }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

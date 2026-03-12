@@ -60,6 +60,9 @@ const IconCategory = () => (
   </svg>
 );
 
+const IconChevronLeft = () => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>);
+const IconChevronRight = () => (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>);
+
 export default function Home() {
   const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
@@ -73,6 +76,10 @@ export default function Home() {
   const [searchText, setSearchText] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [filterYear, setFilterYear] = useState('');
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalBooks, setTotalBooks] = useState(0);
 
   const defaultForm = {
     title: '', author: '', isbn: '', category: 'Công nghệ thông tin',
@@ -117,20 +124,31 @@ export default function Home() {
       search: searchText,
       category: filterCategory,
       year: filterYear,
-      regionId: currentUser?.region?._id || currentUser?.regionId || ''
+      regionId: currentUser?.region?._id || currentUser?.regionId || '',
+      page: currentPage,
+      limit: 5
     });
 
     fetch(`/api/books?${params.toString()}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.success) setBooks(data.data);
+        if (data.success) {
+          setBooks(data.data);
+          if (data.pagination) {
+            setTotalPages(data.pagination.totalPages || 1);
+            setTotalBooks(data.pagination.total || data.data.length);
+          } else {
+            setTotalPages(1);
+            setTotalBooks(data.data.length);
+          }
+        }
         setLoading(false);
       })
       .catch((err) => {
         console.error("Lỗi:", err);
         setLoading(false);
       });
-  }, [currentUser, searchText, filterCategory, filterYear]);
+  }, [currentUser, searchText, filterCategory, filterYear, currentPage]);
 
   useEffect(() => {
     // Kỹ thuật Debounce: Đợi 400ms sau khi ngừng gõ mới gọi API để tiết kiệm tài nguyên Cloud
@@ -139,6 +157,21 @@ export default function Home() {
     }, 400);
     return () => clearTimeout(delayDebounceFn);
   }, [searchText, filterCategory, filterYear, currentUser, fetchBooks]);
+
+  const handleSearchTextChange = (value) => {
+    setSearchText(value);
+    setCurrentPage(1);
+  };
+
+  const handleFilterCategoryChange = (value) => {
+    setFilterCategory(value);
+    setCurrentPage(1);
+  };
+
+  const handleFilterYearChange = (value) => {
+    setFilterYear(value);
+    setCurrentPage(1);
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -212,7 +245,7 @@ export default function Home() {
     }
   };
 
-  const totalBooks = books.length;
+  const displayedBooks = books.length;
   const totalCopies = books.reduce((s, b) => s + (b.totalQuantity || 0), 0);
   const availableCopies = books.reduce((s, b) => s + (b.availableQuantity || 0), 0);
   const uniqueCategories = [...new Set(books.map(b => b.category))].length;
@@ -273,7 +306,7 @@ export default function Home() {
               <a href="#" className="text-indigo-600 font-semibold border-b-2 border-indigo-600 pb-0.5">Ấn phẩm</a>
               <button onClick={() => router.push('/readers')} className="hover:text-slate-800 transition">Độc giả</button>
               <button onClick={() => router.push('/transactions')} className="hover:text-slate-800 transition">Mượn trả</button>
-              <a href="#" className="hover:text-slate-800 transition">Báo cáo</a>
+              <button onClick={() => router.push('/reports')} className="hover:text-slate-800 transition">Báo cáo</button>
             </nav>
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
@@ -355,14 +388,14 @@ export default function Home() {
                 <input
                   type="text"
                   value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
+                  onChange={(e) => handleSearchTextChange(e.target.value)}
                   placeholder="Tìm theo tên sách hoặc tác giả..."
                   className="w-full pl-9 pr-4 py-2.5 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-800 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
               <select
                 value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
+                onChange={(e) => handleFilterCategoryChange(e.target.value)}
                 className="py-2.5 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-700 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
               >
                 <option value="">Tất cả thể loại</option>
@@ -375,7 +408,7 @@ export default function Home() {
               </select>
               <select
                 value={filterYear}
-                onChange={(e) => setFilterYear(e.target.value)}
+                onChange={(e) => handleFilterYearChange(e.target.value)}
                 className="py-2.5 px-3 text-sm rounded-lg border border-slate-200 bg-slate-50 text-slate-700 transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100"
               >
                 <option value="">Tất cả năm</option>
@@ -484,13 +517,30 @@ export default function Home() {
               </div>
             )}
 
-            {!loading && books.length > 0 && (
-              <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-                <span>
-                  Hiển thị <span className="font-semibold text-slate-600">{filteredBooks.length}</span>
-                  {hasActiveFilter && <span> / {totalBooks}</span>} kết quả
+            {!loading && totalBooks > 0 && (
+              <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50 rounded-b-2xl">
+                <span className="text-sm text-slate-500">
+                  Tổng cộng <strong className="text-slate-700">{totalBooks}</strong> đầu sách
                 </span>
-                <span>Cập nhật lần cuối: {new Date().toLocaleDateString('vi-VN')}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-slate-600">Trang {currentPage} / {totalPages}</span>
+                  <div className="flex gap-1.5">
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+                      disabled={currentPage === 1}
+                      className="page-btn p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 shadow-sm"
+                    >
+                      <IconChevronLeft />
+                    </button>
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+                      disabled={currentPage === totalPages}
+                      className="page-btn p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 shadow-sm"
+                    >
+                      <IconChevronRight />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>

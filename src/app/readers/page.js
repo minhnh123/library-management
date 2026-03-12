@@ -230,7 +230,7 @@ export default function ReadersPage() {
               <a href="#" className="text-indigo-600 font-semibold border-b-2 border-indigo-600 pb-0.5">Độc giả</a>
               {/* ĐÃ SỬA THÀNH NÚT CHUYỂN TRANG */}
               <button onClick={() => router.push('/transactions')} className="hover:text-slate-800 transition">Mượn trả</button>
-              <a href="#" className="hover:text-slate-800 transition">Báo cáo</a>
+              <button onClick={() => router.push('/reports')} className="hover:text-slate-800 transition">Báo cáo</button>
             </nav>
 
             <div className="flex items-center gap-4">

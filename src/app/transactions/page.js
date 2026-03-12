@@ -252,7 +252,7 @@ export default function TransactionsPage() {
               <button onClick={() => router.push('/')} className="hover:text-slate-800 transition">Ấn phẩm</button>
               <button onClick={() => router.push('/readers')} className="hover:text-slate-800 transition">Độc giả</button>
               <a href="#" className="text-indigo-600 font-semibold border-b-2 border-indigo-600 pb-0.5">Mượn trả</a>
-              <a href="#" className="hover:text-slate-800 transition">Báo cáo</a>
+              <button onClick={() => router.push('/reports')} className="hover:text-slate-800 transition">Báo cáo</button>
             </nav>
 
             <div className="flex items-center gap-4">

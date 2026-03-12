@@ -3,7 +3,8 @@ import dbConnect from '@/lib/mongodb';
 import Region from '@/models/Region';
 import User from '@/models/User';
 // Import thêm model Book để tránh lỗi khi Mongoose khởi tạo các bảng liên kết
-import Book from '@/models/Book'; 
+import Book from '@/models/Book';
+import bcrypt from 'bcryptjs'; // <-- Thêm dòng này
 
 export async function GET() {
   try {
@@ -28,9 +29,10 @@ export async function GET() {
     let danangUser = await User.findOne({ username: 'thuthu_dn' });
 
     if (!danangUser) {
+      const hashedPassword1 = await bcrypt.hash('123', 10); // Băm mật khẩu 10 vòng
       danangUser = await User.create({
         username: 'thuthu_dn',
-        password: '123', // Lưu ý cho báo cáo: Thực tế mật khẩu này phải được băm (Hash) bằng bcrypt
+        password: hashedPassword1, // Lưu mật khẩu đã băm
         fullName: 'Nguyễn Văn Admin',
         regionId: danangRegion._id,
         role: 'LIBRARIAN'
@@ -51,9 +53,10 @@ export async function GET() {
 
     let hanoiUser = await User.findOne({ username: 'thuthu_hn' });
     if (!hanoiUser) {
+      const hashedPassword2 = await bcrypt.hash('123', 10); // Băm mật khẩu 10 vòng
       hanoiUser = await User.create({
         username: 'thuthu_hn',
-        password: '123',
+        password: hashedPassword2, // Lưu mật khẩu đã băm
         fullName: 'Trần Thủ Thư HN',
         regionId: hanoiRegion._id,
         role: 'LIBRARIAN'
