@@ -307,6 +307,9 @@ export default function Home() {
               <button onClick={() => router.push('/readers')} className="hover:text-slate-800 transition">Độc giả</button>
               <button onClick={() => router.push('/transactions')} className="hover:text-slate-800 transition">Mượn trả</button>
               <button onClick={() => router.push('/reports')} className="hover:text-slate-800 transition">Báo cáo</button>
+              {currentUser?.role === 'ADMIN' && (
+                <button onClick={() => router.push('/users')} className="hover:text-rose-600 text-rose-500 font-bold transition">Nhân sự (Admin)</button>
+              )}
             </nav>
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">

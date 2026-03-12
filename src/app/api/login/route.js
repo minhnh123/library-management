@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import Region from '@/models/Region'; // <--- BẠN HÃY THÊM DÒNG NÀY VÀO
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
 
 // Chìa khóa bí mật để ký Token (Thực tế sẽ để trong file .env)
-const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'chuoi_ky_tu_bi_mat_cua_do_an_cloud_2026');
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('Missing JWT_SECRET environment variable. Set in .env.local');
+}
+const SECRET_KEY = new TextEncoder().encode(JWT_SECRET);
 
 export async function POST(request) {
   try {
@@ -23,7 +28,8 @@ export async function POST(request) {
     const token = await new SignJWT({ 
       userId: user._id, 
       username: user.username,
-      regionId: user.regionId._id 
+      regionId: user.regionId?._id, // Thêm dấu ? đề phòng Admin không thuộc vùng nào
+      role: user.role               // <--- THÊM DÒNG NÀY ĐỂ LƯU QUYỀN HẠN
     })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()

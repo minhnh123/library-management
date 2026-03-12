@@ -64,6 +64,20 @@ export async function GET() {
       console.log('Đã tạo mới tài khoản Thủ thư Hà Nội!');
     }
 
+    // TẠO TÀI KHOẢN SUPER ADMIN
+    let adminUser = await User.findOne({ username: 'admin' });
+    if (!adminUser) {
+      const hashedAdminPass = await bcrypt.hash('123', 10);
+      adminUser = await User.create({
+        username: 'admin',
+        password: hashedAdminPass,
+        fullName: 'Giám Đốc Hệ Thống',
+        role: 'ADMIN',
+        regionId: danangRegion._id // Tạm gán vào 1 vùng để không bị lỗi Schema
+      });
+      console.log('Đã tạo mới tài khoản Super Admin!');
+    }
+
     // 4. Trả về kết quả
     return NextResponse.json({
       success: true,
@@ -77,6 +91,11 @@ export async function GET() {
         ha_noi: {
           chi_nhanh: hanoiRegion.name,
           tai_khoan: hanoiUser.username,
+          mat_khau: '123'
+        },
+        admin: {
+          chi_nhanh: danangRegion.name,
+          tai_khoan: adminUser.username,
           mat_khau: '123'
         }
       }
