@@ -4,6 +4,8 @@ import User from '@/models/User';
 import Region from '@/models/Region'; // <--- BẠN HÃY THÊM DÒNG NÀY VÀO
 import bcrypt from 'bcryptjs';
 import { SignJWT } from 'jose';
+import { LoginSchema } from '@/lib/validations';
+import { ZodError } from 'zod';
 
 // Chìa khóa bí mật để ký Token (Thực tế sẽ để trong file .env)
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -15,7 +17,10 @@ const SECRET_KEY = new TextEncoder().encode(JWT_SECRET);
 export async function POST(request) {
   try {
     await dbConnect();
-    const { username, password } = await request.json();
+    const body = await request.json();
+
+    // Validate input
+    const { username, password } = LoginSchema.parse(body);
 
     const user = await User.findOne({ username }).populate('regionId');
     if (!user) return NextResponse.json({ success: false, error: 'Tài khoản không tồn tại!' }, { status: 401 });
@@ -51,6 +56,9 @@ export async function POST(request) {
 
     return response;
   } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json({ success: false, error: 'Dữ liệu đầu vào không hợp lệ', details: error.errors }, { status: 400 });
+    }
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

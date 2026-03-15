@@ -29,7 +29,7 @@ export async function GET() {
     let danangUser = await User.findOne({ username: 'thuthu_dn' });
 
     if (!danangUser) {
-      const hashedPassword1 = await bcrypt.hash('123', 10); // Băm mật khẩu 10 vòng
+      const hashedPassword1 = await bcrypt.hash('123456', 10); // Băm mật khẩu 10 vòng
       danangUser = await User.create({
         username: 'thuthu_dn',
         password: hashedPassword1, // Lưu mật khẩu đã băm
@@ -53,7 +53,7 @@ export async function GET() {
 
     let hanoiUser = await User.findOne({ username: 'thuthu_hn' });
     if (!hanoiUser) {
-      const hashedPassword2 = await bcrypt.hash('123', 10); // Băm mật khẩu 10 vòng
+      const hashedPassword2 = await bcrypt.hash('123456', 10); // Băm mật khẩu 10 vòng
       hanoiUser = await User.create({
         username: 'thuthu_hn',
         password: hashedPassword2, // Lưu mật khẩu đã băm
@@ -67,7 +67,7 @@ export async function GET() {
     // TẠO TÀI KHOẢN SUPER ADMIN
     let adminUser = await User.findOne({ username: 'admin' });
     if (!adminUser) {
-      const hashedAdminPass = await bcrypt.hash('123', 10);
+      const hashedAdminPass = await bcrypt.hash('123456', 10);
       adminUser = await User.create({
         username: 'admin',
         password: hashedAdminPass,
@@ -86,17 +86,17 @@ export async function GET() {
         da_nang: {
           chi_nhanh: danangRegion.name,
           tai_khoan: danangUser.username,
-          mat_khau: '123'
+          mat_khau: '123456'
         },
         ha_noi: {
           chi_nhanh: hanoiRegion.name,
           tai_khoan: hanoiUser.username,
-          mat_khau: '123'
+          mat_khau: '123456'
         },
         admin: {
           chi_nhanh: danangRegion.name,
           tai_khoan: adminUser.username,
-          mat_khau: '123'
+          mat_khau: '123456'
         }
       }
     }, { status: 200 });
