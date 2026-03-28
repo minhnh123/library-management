@@ -355,7 +355,7 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-bold text-slate-800">{currentUser?.fullName || currentUser?.name || currentUser?.username || 'Thủ thư'}</p>
-                <p className="text-xs text-slate-500">Thủ thư</p>
+                <p className="text-xs text-slate-500 font-medium">{currentUser?.role === 'ADMIN' ? 'Super Admin' : 'Thủ thư'}</p>
               </div>
               <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-sm">
                 {currentUser?.fullName ? currentUser.fullName.charAt(0).toUpperCase() : (currentUser?.username ? currentUser.username.charAt(0).toUpperCase() : 'T')}
