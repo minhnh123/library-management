@@ -83,10 +83,17 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    const validatedData = parsed.data;
+    let validatedData = parsed.data;
+
+    // Chuẩn hóa ISBN: loại bỏ ký tự không phải số để chấp nhận 978-1234567891, 978 1234567891...
+    const normalizedIsbn = String(validatedData.isbn).replace(/[^0-9]/g, '');
+    validatedData = {
+      ...validatedData,
+      isbn: normalizedIsbn
+    };
 
     // 1. Kiểm tra xem mã ISBN này đã từng tồn tại trong database chưa
-    const existingBook = await Book.findOne({ isbn: validatedData.isbn });
+    const existingBook = await Book.findOne({ isbn: normalizedIsbn });
     
     if (existingBook) {
       if (existingBook.isDeleted) {

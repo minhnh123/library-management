@@ -6,8 +6,13 @@ export const BookSchema = z.object({
   author: z.string().min(1, 'Tác giả không được để trống').max(100, 'Tên tác giả quá dài'),
   isbn: z.string()
     .min(10, 'ISBN phải có ít nhất 10 ký tự')
-    .max(13, 'ISBN không được quá 13 ký tự')
-    .regex(/^(?:\d{10}|\d{13})$/, 'ISBN phải là 10 hoặc 13 chữ số'),
+    .max(20, 'ISBN không được quá 20 ký tự')
+    .refine(value => {
+      const stripped = value.replace(/-/g, '');
+      return /^\d+$/.test(stripped) && (stripped.length === 10 || stripped.length === 13);
+    }, {
+      message: 'ISBN phải là 10 hoặc 13 chữ số, có thể bao gồm dấu gạch ngang (-)'
+    }),
   category: z.string().optional(),
   publishedYear: z.number().int().min(1000).max(new Date().getFullYear()).optional(),
   totalQuantity: z.number().int().min(1).default(1),
