@@ -253,6 +253,11 @@ export default function TransactionsPage() {
               <button onClick={() => router.push('/readers')} className="hover:text-slate-800 transition">Độc giả</button>
               <a href="#" className="text-indigo-600 font-semibold border-b-2 border-indigo-600 pb-0.5">Mượn trả</a>
               <button onClick={() => router.push('/reports')} className="hover:text-slate-800 transition">Báo cáo</button>
+
+              {/* NÚT ADMIN NỔI BẬT */}
+              {currentUser?.role === 'ADMIN' && (
+                <button onClick={() => router.push('/users')} className="text-rose-500 hover:text-rose-600 font-bold transition">Nhân sự (Admin)</button>
+              )}
             </nav>
 
             <div className="flex items-center gap-4">

@@ -254,6 +254,11 @@ export default function Home() {
 
     const payload = {
       ...formData,
+      // Ép kiểu dữ liệu từ Chuỗi (String) sang Số (Number) để Zod không bắt lỗi
+      publishedYear: Number(formData.publishedYear),
+      totalQuantity: Number(formData.totalQuantity),
+      availableQuantity: Number(formData.availableQuantity),
+      
       regionId: currentUser?.region?._id || currentUser?.regionId || '',
       createdBy: currentUser?._id || currentUser?.id || '',
       updatedBy: currentUser?._id || currentUser?.id || ''

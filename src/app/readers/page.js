@@ -231,6 +231,11 @@ export default function ReadersPage() {
               {/* ĐÃ SỬA THÀNH NÚT CHUYỂN TRANG */}
               <button onClick={() => router.push('/transactions')} className="hover:text-slate-800 transition">Mượn trả</button>
               <button onClick={() => router.push('/reports')} className="hover:text-slate-800 transition">Báo cáo</button>
+
+              {/* NÚT ADMIN NỔI BẬT */}
+              {currentUser?.role === 'ADMIN' && (
+                <button onClick={() => router.push('/users')} className="text-rose-500 hover:text-rose-600 font-bold transition">Nhân sự (Admin)</button>
+              )}
             </nav>
 
             <div className="flex items-center gap-4">

@@ -68,9 +68,23 @@ export async function POST(request) {
     await dbConnect();
     const body = await request.json();
 
-    // Validate input data
-    const validatedData = BookSchema.parse(body);
-    
+    const parsed = BookSchema.safeParse(body); // Đảm bảo tên biến Schema của bạn đúng
+
+    if (!parsed.success) {
+      // In ra Terminal để bạn dễ debug nếu cần
+      console.log("LỖI ZOD:", parsed.error.issues);
+
+      // Dùng dấu ? (Optional Chaining) để chống crash nếu mảng bị rỗng
+      const errorMessage = parsed.error?.issues?.[0]?.message || "Dữ liệu đầu vào không hợp lệ do sai kiểu chữ/số";
+
+      return NextResponse.json({ 
+        success: false, 
+        error: errorMessage 
+      }, { status: 400 });
+    }
+
+    const validatedData = parsed.data;
+
     // 1. Kiểm tra xem mã ISBN này đã từng tồn tại trong database chưa
     const existingBook = await Book.findOne({ isbn: validatedData.isbn });
     

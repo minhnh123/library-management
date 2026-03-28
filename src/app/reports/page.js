@@ -146,6 +146,11 @@ export default function ReportsPage() {
               <button onClick={() => router.push('/readers')} className="hover:text-slate-800 transition">Độc giả</button>
               <button onClick={() => router.push('/transactions')} className="hover:text-slate-800 transition">Mượn trả</button>
               <a href="#" className="text-indigo-600 font-semibold border-b-2 border-indigo-600 pb-0.5">Báo cáo</a>
+
+              {/* NÚT ADMIN NỔI BẬT */}
+              {currentUser?.role === 'ADMIN' && (
+                <button onClick={() => router.push('/users')} className="text-rose-500 hover:text-rose-600 font-bold transition">Nhân sự (Admin)</button>
+              )}
             </nav>
 
             <div className="flex items-center gap-4">

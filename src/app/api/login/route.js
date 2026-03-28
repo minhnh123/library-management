@@ -44,7 +44,15 @@ export async function POST(request) {
     // 3. GÓI TOKEN VÀO HTTP-ONLY COOKIE (Chống XSS Hacker)
     const response = NextResponse.json({
       success: true,
-      data: { _id: user._id, username: user.username, fullName: user.fullName, role: user.role, region: user.regionId }
+      data: {
+        _id: user._id,
+        username: user.username,
+        fullName: user.fullName,
+        role: user.role,
+        region: user.regionId,
+        // THÊM DÒNG NÀY ĐỂ TRẢ VỀ TÊN CHI NHÁNH DƯỚI DẠNG CHUỖI
+        regionName: user.regionId?.name || 'LibraryOS'
+      }
     }, { status: 200 });
 
     response.cookies.set('library_token', token, {
