@@ -18,6 +18,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
   const [formData, setFormData] = useState({ username: '', password: '', fullName: '', role: 'LIBRARIAN', regionId: '' });
 
   // 1. KIỂM TRA QUYỀN ADMIN
@@ -57,23 +58,17 @@ export default function UsersPage() {
     
     const fetchData = async () => {
       try {
-        const [resUsers, resRegions] = await Promise.all([
-          fetch('/api/users'),
-          fetch('/api/regions')
-        ]);
-        
-        const dataUsers = await resUsers.json();
+        await fetchUsers();
+        const resRegions = await fetch('/api/regions');
         const dataRegions = await resRegions.json();
-        
-        if (dataUsers.success) setUsers(dataUsers.data);
         if (dataRegions.success) {
-            setRegions(dataRegions.data);
-            if (dataRegions.data.length > 0) {
-                setFormData(prev => ({ ...prev, regionId: dataRegions.data[0]._id }));
-            }
+          setRegions(dataRegions.data);
+          if (dataRegions.data.length > 0) {
+            setFormData(prev => ({ ...prev, regionId: dataRegions.data[0]._id }));
+          }
         }
       } catch (error) {
-        console.error("Lỗi:", error);
+        console.error('Lỗi:', error);
       } finally {
         setLoading(false);
       }
@@ -87,24 +82,71 @@ export default function UsersPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // 3. XỬ LÝ TẠO TÀI KHOẢN MỚI
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users');
+      const data = await res.json();
+      if (data.success) setUsers(data.data);
+    } catch (error) {
+      console.error('Không thể tải danh sách người dùng:', error);
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUserId(user._id);
+    setFormData({
+      username: user.username,
+      password: '',
+      fullName: user.fullName,
+      role: user.role,
+      regionId: user.regionId?._id || regions[0]?._id || '',
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa tài khoản này không?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Xóa tài khoản thành công.');
+        await fetchUsers();
+      } else {
+        alert('Lỗi: ' + data.error);
+      }
+    } catch (error) {
+      alert('Lỗi hệ thống khi xóa tài khoản.');
+    }
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingUserId(null);
+    setFormData({ username: '', password: '', fullName: '', role: 'LIBRARIAN', regionId: regions[0]?._id || '' });
+  };
+
+  // 3. XỬ LÝ TẠO TÀI KHOẢN MỚI HOẶC CẬP NHẬT
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
+      const method = editingUserId ? 'PATCH' : 'POST';
+      const endpoint = editingUserId ? `/api/users/${editingUserId}` : '/api/users';
+      const res = await fetch(endpoint, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
       const data = await res.json();
       if (data.success) {
-        alert('Tạo tài khoản thành công!');
-        const reloadRes = await fetch('/api/users');
-        const reloadData = await reloadRes.json();
-        if (reloadData.success) setUsers(reloadData.data);
-        
-        setIsModalOpen(false);
-        setFormData({ username: '', password: '', fullName: '', role: 'LIBRARIAN', regionId: regions[0]?._id || '' });
+        alert(editingUserId ? 'Cập nhật tài khoản thành công!' : 'Tạo tài khoản thành công!');
+        await fetchUsers();
+        handleCloseModal();
       } else {
         alert('Lỗi: ' + data.error);
       }
@@ -164,7 +206,7 @@ export default function UsersPage() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
             <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100">
               <h3 className="font-semibold text-slate-800 flex items-center gap-2"><IconUserGroup/> Danh sách nhân sự ({users.length})</h3>
-              <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 rounded-xl bg-indigo-900 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-800 active:scale-95">
+              <button onClick={() => { setEditingUserId(null); setIsModalOpen(true); setFormData({ username: '', password: '', fullName: '', role: 'LIBRARIAN', regionId: regions[0]?._id || '' }); }} className="flex items-center gap-2 rounded-xl bg-indigo-900 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-800 active:scale-95">
                 <IconPlus /> Cấp tài khoản mới
               </button>
             </div>
@@ -184,6 +226,7 @@ export default function UsersPage() {
                       <th className="px-6 py-4 text-left">Quyền hạn</th>
                       <th className="px-6 py-4 text-left">Chi nhánh Quản lý</th>
                       <th className="px-6 py-4 text-left">Ngày cấp</th>
+                      <th className="px-6 py-4 text-left">Hành động</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -198,6 +241,20 @@ export default function UsersPage() {
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-600">{user.role === 'ADMIN' ? 'Toàn hệ thống' : (user.regionId?.name || 'Chưa phân vùng')}</td>
                         <td className="px-6 py-4 text-slate-400">{new Date(user.createdAt).toLocaleDateString('vi-VN')}</td>
+                        <td className="px-6 py-4 text-slate-600">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleEditUser(user)}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                            >Sửa</button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(user._id)}
+                              className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition"
+                            >Xóa</button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -213,8 +270,8 @@ export default function UsersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="modal-enter w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-800">Cấp tài khoản Thủ thư</h3>
-              <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-100 rounded-lg"><IconClose /></button>
+              <h3 className="text-base font-bold text-slate-800">{editingUserId ? 'Cập nhật tài khoản' : 'Cấp tài khoản Thủ thư'}</h3>
+              <button onClick={handleCloseModal} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-100 rounded-lg"><IconClose /></button>
             </div>
 
             <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
@@ -223,8 +280,16 @@ export default function UsersPage() {
                 <input required type="text" name="username" value={formData.username} onChange={handleInputChange} className={inputClass} placeholder="VD: thuthu_hcm" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Mật khẩu <span className="text-rose-400">*</span></label>
-                <input required type="password" name="password" value={formData.password} onChange={handleInputChange} className={inputClass} placeholder="Nhập mật khẩu" />
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Mật khẩu {editingUserId ? '(để trống nếu không đổi)' : <span className="text-rose-400">*</span>}</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className={inputClass}
+                  placeholder={editingUserId ? 'Để trống nếu không muốn đổi' : 'Nhập mật khẩu'}
+                  required={!editingUserId}
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Họ và Tên <span className="text-rose-400">*</span></label>
@@ -238,8 +303,8 @@ export default function UsersPage() {
               </div>
 
               <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-slate-100">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition">Hủy</button>
-                <button type="submit" className="rounded-xl bg-indigo-900 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-800 transition active:scale-95">Tạo tài khoản</button>
+                <button type="button" onClick={handleCloseModal} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition">Hủy</button>
+                <button type="submit" className="rounded-xl bg-indigo-900 px-5 py-2.5 text-sm font-semibold text-white shadow-md hover:bg-indigo-800 transition active:scale-95">{editingUserId ? 'Cập nhật' : 'Tạo tài khoản'}</button>
               </div>
             </form>
           </div>
